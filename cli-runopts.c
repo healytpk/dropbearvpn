@@ -23,8 +23,9 @@
  * SOFTWARE. */
 
 // =========================== Stuff needed for VPN ====================
-#include <stdlib.h>  // malloc, free
-#include <string.h>  // strlen, strcpy, strtok, memset
+#include <stdlib.h>        // malloc, free
+#include <string.h>        // strlen, strcpy, strtok, memset
+#include "cli-vpn-core.h"  // VPN_ParseNetworks
 #define nullptr (0)
 // =====================================================================
 
@@ -554,6 +555,7 @@ void cli_getopts(int argc, char ** argv) {
 		    if ( nullptr == p ) break;
 
 		    // Parse the network addresses
+		    VPN_ParseNetworks(1,2);
 		}
 
 		free(str_routes);

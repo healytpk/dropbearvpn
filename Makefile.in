@@ -48,7 +48,7 @@ SVROBJS=svr-kex.o svr-auth.o sshpty.o \
 CLIOBJS=cli-main.o cli-auth.o cli-authpasswd.o cli-kex.o \
 		cli-session.o cli-runopts.o cli-chansession.o \
 		cli-authpubkey.o cli-tcpfwd.o cli-channel.o cli-authinteract.o \
-		cli-agentfwd.o 
+		cli-agentfwd.o cli-vpn-core.o_cpp 
 
 CLISVROBJS=common-session.o packet.o common-algo.o common-kex.o \
 			common-channel.o common-chansession.o termcodes.o loginrec.o \
@@ -103,12 +103,17 @@ mandir=@mandir@
 .DELETE_ON_ERROR:
 
 CC=@CC@
+CXX=@CXX@
+CXX := $(if $(CXX),$(CXX),g++)
+CXX += -std=c++23
 AR=@AR@
 RANLIB=@RANLIB@
 STRIP=@STRIP@
 INSTALL=@INSTALL@
 CPPFLAGS+=@CPPFLAGS@ -I. -I$(srcdir)
 CFLAGS+=@CFLAGS@
+CXXFLAGS := $(filter-out -Wno-pointer-sign,$(CFLAGS))
+CFLAGS+=-Werror-implicit-function-declaration
 LIBS+=@LIBS@
 LDFLAGS=@LDFLAGS@
 
@@ -128,6 +133,8 @@ endif
 # these are exported so that libtomcrypt's makefile will use them
 export CC
 export CFLAGS
+export CXX
+export CXXFLAGS
 export CPPFLAGS
 export RANLIB AR STRIP
 
@@ -152,6 +159,11 @@ all: $(TARGETS)
 HEADERS=$(wildcard $(srcdir)/*.h *.h) $(OPTION_HEADERS)
 %.o : %.c $(HEADERS)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+# for simplicity assume all source depends on all headers
+HEADERS=$(wildcard $(srcdir)/*.h *.h) $(OPTION_HEADERS)
+%.o_cpp : %.cpp $(HEADERS)
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $< -o $@
 
 default_options_guard.h: default_options.h
 	@echo Creating $@
@@ -203,7 +215,7 @@ dropbear: $(HEADERS) $(LIBTOM_DEPS) Makefile
 	$(CC) $(LDFLAGS) -o $@$(EXEEXT) $($@objs) $(LIBTOM_LIBS) $(LIBS) @CRYPTLIB@ $(PLUGIN_LIBS)
 
 dbclient: $(HEADERS) $(LIBTOM_DEPS) Makefile
-	$(CC) $(LDFLAGS) -o $@$(EXEEXT) $($@objs) $(LIBTOM_LIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@$(EXEEXT) $($@objs) $(LIBTOM_LIBS) $(LIBS)
 
 dropbearkey dropbearconvert: $(HEADERS) $(LIBTOM_DEPS) Makefile
 	$(CC) $(LDFLAGS) -o $@$(EXEEXT) $($@objs) $(LIBTOM_LIBS) $(LIBS)
@@ -221,7 +233,7 @@ ifeq ($(MULTI),1)
 endif
 
 dropbearmulti$(EXEEXT): $(HEADERS) $(MULTIOBJS) $(LIBTOM_DEPS) Makefile
-	$(CC) $(LDFLAGS) -o $@ $(MULTIOBJS) $(LIBTOM_LIBS) $(LIBS) @CRYPTLIB@
+	$(CXX) $(LDFLAGS) -o $@ $(MULTIOBJS) $(LIBTOM_LIBS) $(LIBS) @CRYPTLIB@
 
 multibinary: dropbearmulti$(EXEEXT)
 
@@ -253,7 +265,7 @@ clean: $(LIBTOM_CLEAN) $(FUZZ_CLEAN) thisclean
 thisclean:
 	-rm -f dropbear$(EXEEXT) dbclient$(EXEEXT) dropbearkey$(EXEEXT) \
 			dropbearconvert$(EXEEXT) scp$(EXEEXT) scp-progress$(EXEEXT) \
-			dropbearmulti$(EXEEXT) *.o *.da *.bb *.bbg *.prof
+			dropbearmulti$(EXEEXT) *.o *.o_cpp *.da *.bb *.bbg *.prof
 
 distclean: clean tidy
 	-rm -f config.h
