@@ -22,6 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE. */
 
+// =========================== Stuff needed for VPN ====================
+#include <stdlib.h>  // malloc, free
+#include <string.h>  // strlen, strcpy, strtok, memset
+#define nullptr (0)
+// =====================================================================
+
 #include "includes.h"
 #include "runopts.h"
 #include "signkey.h"
@@ -50,12 +56,21 @@ static void add_extendedopt(const char *str);
 
 static void printhelp() {
 
-	fprintf(stderr, "Dropbear SSH client v%s https://matt.ucc.asn.au/dropbear/dropbear.html\n"
+	fprintf(stderr, "Dropbear SSH client v%s with VPN\n"
+	                "Originally written by Matt Johnston, later forked by TPK Healy to add VPN.\n"
+	                "https://matt.ucc.asn.au/dropbear/dropbear.html\n"
 #if DROPBEAR_CLI_MULTIHOP
 					"Usage: %s [options] [user@]host[/port][,[user@]host/port],...] [command]\n"
 #else
 					"Usage: %s [options] [user@]host[/port] [command]\n"
 #endif
+					"\n"
+					"-Z <on/off:routes> Enable VPN, configure NAT and routes\n"
+					"                   Examples:\n"
+					"                     NAT Enabled:   -Z on:0.0.0.0/0\n"
+					"                     NAT Disabled:  -Z off:0.0.0.0/0\n"
+					"                     Custom Routes: -Z on:10.0.0.0/8,192.168.1.0/24\n"
+					"\n"
 					"-p <remoteport>\n"
 					"-l <username>\n"
 					"-t    Allocate a pty\n"
@@ -137,6 +152,10 @@ void cli_getopts(int argc, char ** argv) {
 	char c;
 
 	/* see printhelp() for options */
+	cli_opts.vpn = false;
+	cli_opts.vpn_config_str = nullptr;
+	memset(cli_opts.vpn_routes, 0, sizeof cli_opts.vpn_routes);
+	cli_opts.vpn_addr_trans = true;
 	cli_opts.progname = argv[0];
 	cli_opts.remotehost = NULL;
 	cli_opts.remoteport = NULL;
@@ -329,6 +348,10 @@ void cli_getopts(int argc, char ** argv) {
 				case 'z':
 					opts.disable_ip_tos = 1;
 					break;
+				case 'Z':
+					cli_opts.vpn = true;
+					next = (char**)&cli_opts.vpn_config_str;
+					break;
 				default:
 					fprintf(stderr,
 						"WARNING: Ignoring unknown option -%c\n", c);
@@ -501,6 +524,40 @@ void cli_getopts(int argc, char ** argv) {
 	}
 #endif
 
+	if ( cli_opts.vpn )
+	{
+		unsigned offset = 0u;
+
+		if ( (strlen(cli_opts.vpn_config_str) >= 3u) && (0 == memcmp("on:",cli_opts.vpn_config_str, 3u)) )
+		{
+			cli_opts.vpn_addr_trans	= true;
+			offset = 3u;
+		}
+		else if ( (strlen(cli_opts.vpn_config_str) >= 4u) && (0 == memcmp("off:",cli_opts.vpn_config_str, 4u)) )
+		{
+			cli_opts.vpn_addr_trans	= false;
+			offset = 4u;
+		}
+		else
+		{
+			dropbear_exit("Invalid configuration string for VPN -- must begin with either \"on:\" or \"off:\"");
+		}
+
+		char *const str_routes = malloc( strlen(cli_opts.vpn_config_str) - offset );
+
+		strcpy(str_routes, cli_opts.vpn_config_str + offset);
+
+		for ( unsigned i = 0u; i < (sizeof cli_opts.vpn_routes / sizeof *cli_opts.vpn_routes); ++i )
+		{
+		    char *const p = strtok(i ? nullptr : str_routes, ",");
+
+		    if ( nullptr == p ) break;
+
+		    // Parse the network addresses
+		}
+
+		free(str_routes);
+	}
 }
 
 #if DROPBEAR_CLI_PUBKEY_AUTH

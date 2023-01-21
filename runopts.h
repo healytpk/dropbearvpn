@@ -25,6 +25,8 @@
 #ifndef DROPBEAR_RUNOPTS_H_
 #define DROPBEAR_RUNOPTS_H_
 
+#include <stdbool.h> // bool, true, false
+#include <stdint.h>  // uint32_t (for IP addresses)
 #include "includes.h"
 #include "signkey.h"
 #include "buffer.h"
@@ -145,7 +147,16 @@ extern svr_runopts svr_opts;
 void svr_getopts(int argc, char ** argv);
 void loadhostkeys(void);
 
+typedef struct RoutingTableEntry {
+	uint32_t ip, mask;
+} RoutingTableEntry;
+
 typedef struct cli_runopts {
+
+	bool vpn;
+	char const *vpn_config_str;
+	RoutingTableEntry vpn_routes[16];
+	bool vpn_addr_trans;
 
 	char *progname;
 	char *remotehost;
