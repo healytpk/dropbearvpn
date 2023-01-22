@@ -5,8 +5,9 @@
 #include <linux/if_tun.h>    //
 #include <unistd.h>          // close
 
-int tun_alloc(char *const dev, int const flags)
+int tun_alloc(char *const dev)
 {
+    int const flags =  IFF_TUN | IFF_NO_PI;
     struct ifreq ifr = {0};
     int fd, err;
     char *const clonedev = "/dev/net/tun";

@@ -25,8 +25,10 @@
 // =========================== Stuff needed for VPN ====================
 #include <stdlib.h>        // malloc, free
 #include <string.h>        // strlen, strcpy, strtok, memset
-#include "cli-vpn-core.h"  // VPN_ParseNetworks
+#include <threads.h>       // thrd_t, thrd_create, thrd_join
+#include "cli-vpn-core.h"  // VPN_ParseNetworks, VPN_ThreadEntryPoint_ListenToTun
 #define nullptr (0)
+extern int tun_alloc(char *dev); // defined in cli-vpn-linux-tun.c
 // =====================================================================
 
 #include "includes.h"
@@ -559,6 +561,26 @@ void cli_getopts(int argc, char ** argv) {
 		}
 
 		free(str_routes);
+
+		char tun_name[256u];
+
+		/* Connect to the device */
+		strcpy(tun_name, "tun77");
+		int tun_fd = tun_alloc(tun_name);  /* tun interface */
+
+		if ( tun_fd < 0 )
+		{
+			dropbear_exit("Could not create and open tun device for VPN");
+		}
+
+		thrd_t tun_listener_thread;
+		if ( thrd_success != thrd_create(&tun_listener_thread,VPN_ThreadEntryPoint_ListenToTun,&tun_fd) )
+		{
+			dropbear_exit("Could not spawn a new thread to listen to the TUN device");
+		}
+
+		int dummy;
+		thrd_join(tun_listener_thread,&dummy);
 	}
 }
 

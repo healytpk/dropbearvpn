@@ -11,6 +11,7 @@
 
 #    include <stdbool.h>  // bool, true, false
      extern bool VPN_ParseNetworks(int,int);
+     extern int  VPN_ThreadEntryPoint_ListenToTun(void*);
 
 #endif
 

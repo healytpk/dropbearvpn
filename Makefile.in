@@ -48,7 +48,7 @@ SVROBJS=svr-kex.o svr-auth.o sshpty.o \
 CLIOBJS=cli-main.o cli-auth.o cli-authpasswd.o cli-kex.o \
 		cli-session.o cli-runopts.o cli-chansession.o \
 		cli-authpubkey.o cli-tcpfwd.o cli-channel.o cli-authinteract.o \
-		cli-agentfwd.o cli-vpn-core.o_cpp cli-vpn-linux-tun.o
+		cli-agentfwd.o cli-vpn-core.o_cpp cli-vpn-linux-tun.o checksum.o 
 
 CLISVROBJS=common-session.o packet.o common-algo.o common-kex.o \
 			common-channel.o common-chansession.o termcodes.o loginrec.o \
