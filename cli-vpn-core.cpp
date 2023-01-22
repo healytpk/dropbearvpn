@@ -53,17 +53,18 @@ extern "C" int VPN_ThreadEntryPoint_ListenToTun(void *const arg)
         /* Do whatever with the data */
         cout << "Read " << nread << " bytes from TUN device:" << endl;
 
-/*
-        for ( int i = 0; i < nread; ++i )
-        {
-            static char const hex[] = "0123456789abcdef";
-            cout << hex[ 0xF & (buffer[i] >> 4u) ]
-                 << hex[ 0xF & (buffer[i] >> 0u) ];
-        }
-*/
         if ( !IsValidIP4(buffer,buffer + nread) )
         {
-            cout << "Invalid IPv4 Packet" << endl;
+            cout << "Invalid IPv4 Packet [";
+
+            for ( int i = 0; i < nread; ++i )
+            {
+                static char const hex[] = "0123456789abcdef";
+                cout << hex[ 0xF & (buffer[i] >> 4u) ]
+                     << hex[ 0xF & (buffer[i] >> 0u) ];
+            }
+
+            cout << "]" << endl;
             continue;
         }
 
