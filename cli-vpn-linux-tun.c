@@ -2,49 +2,77 @@
 #include <sys/ioctl.h>       // ioctl
 #include <fcntl.h>           // open
 #include <linux/if.h>        // ifreq
-#include <linux/if_tun.h>    //
+#include <linux/if_tun.h>
 #include <unistd.h>          // close
+#include <sys/socket.h>      // socket
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>       // htonl
 
-int tun_alloc(char *const dev)
+#define nullptr (0)
+
+static int setip(int const fd, char const *const str_dev, char const *const str_ip)
 {
-    int const flags =  IFF_TUN | IFF_NO_PI;
+    struct ifreq ifr = {0};
+    struct sockaddr_in addr = {0};
+    char buff[64u] = {0};
+    int retval = -1;
+
+    strncpy(ifr.ifr_name, str_dev, IFNAMSIZ);
+
+    addr.sin_family = AF_INET;
+    int const s = socket(addr.sin_family, SOCK_DGRAM, 0);
+    if ( -1 == s ) return -1;
+
+    if ( 1 != inet_pton(addr.sin_family, str_ip, &addr.sin_addr) ) goto End;
+
+    ifr.ifr_addr = *(struct sockaddr*)&addr;
+
+    /* Next line is just to test if address conversion happened properly */
+    if ( nullptr == inet_ntop(AF_INET, &addr.sin_addr, buff, 64u) ) goto End;
+
+    if ( -1 == ioctl(s, SIOCSIFADDR, &ifr) ) goto End;
+
+    memset(&ifr, 0, sizeof ifr);
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, str_dev, IFNAMSIZ);
+    ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr = htonl(0xFFFFFF00);
+    ioctl(s, SIOCSIFNETMASK, &ifr);
+
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, str_dev, IFNAMSIZ);
+    ifr.ifr_flags |= IFF_UP;
+    if ( -1 == ioctl(s, SIOCSIFFLAGS, &ifr) ) goto End;
+
+    //wipe_out_ipv6(fd,str_dev);
+
+    retval = fd;
+
+End:
+    if ( -1 != s ) close(s);
+    return retval;
+}
+
+int tun_alloc(void)
+{
     struct ifreq ifr = {0};
     int fd, err;
-    char *const clonedev = "/dev/net/tun";
 
-    /* Arguments taken by the function:
-    *
-    * char *dev: the name of an interface (or '\0'). MUST have enough
-    *   space to hold the interface name if '\0' is passed
-    * int flags: interface flags (eg, IFF_TUN etc.)
-    */
+    if ( (fd = open("/dev/net/tun", O_RDWR)) < 0 ) return fd;
 
-    /* open the clone device */
-    if ( (fd = open(clonedev, O_RDWR)) < 0 ) return fd;
+    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
 
-    ifr.ifr_flags = flags;   /* IFF_TUN or IFF_TAP, plus maybe IFF_NO_PI */
-
-    if ( '\0' != dev[0] )
-    {
-        /* if a device name was specified, put it in the structure; otherwise,
-        * the kernel will try to allocate the "next" device of the
-        * specified type */
-        strncpy(ifr.ifr_name, dev, IFNAMSIZ);
-    }
-
-    /* try to create the device */
     if ( (err = ioctl(fd, TUNSETIFF, &ifr)) < 0 )
     {
         close(fd);
         return err;
     }
 
-    /* if the operation was successful, write back the name of the
-    * interface to the variable "dev", so the caller can know
-    * it. Note that the caller MUST reserve space in *dev       */
-    strcpy(dev, ifr.ifr_name);
+    if ( -1 == setip(fd, ifr.ifr_name, "10.10.10.1") )
+    {
+        close(fd);
+        fd = -1;
+    }
 
-    /* this is the special file descriptor that the caller will use to talk
-    * with the virtual interface */
     return fd;
 }

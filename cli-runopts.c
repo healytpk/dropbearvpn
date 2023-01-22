@@ -28,7 +28,7 @@
 #include <threads.h>       // thrd_t, thrd_create, thrd_join
 #include "cli-vpn-core.h"  // VPN_ParseNetworks, VPN_ThreadEntryPoint_ListenToTun
 #define nullptr (0)
-extern int tun_alloc(char *dev); // defined in cli-vpn-linux-tun.c
+extern int tun_alloc(void); // defined in cli-vpn-linux-tun.c
 // =====================================================================
 
 #include "includes.h"
@@ -562,11 +562,7 @@ void cli_getopts(int argc, char ** argv) {
 
 		free(str_routes);
 
-		char tun_name[256u];
-
-		/* Connect to the device */
-		strcpy(tun_name, "tun77");
-		int tun_fd = tun_alloc(tun_name);  /* tun interface */
+		int const tun_fd = tun_alloc();  /* tun interface */
 
 		if ( tun_fd < 0 )
 		{
